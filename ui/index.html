@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Otacon Voice Trainer</title>
+<style>
+  :root {
+    --bg0: #07140c;
+    --bg1: #0c1f14;
+    --ink: #d7f5df;
+    --muted: #8fb89a;
+    --accent: #3dff9a;
+    --line: rgba(61,255,154,.22);
+    --warn: #ffb86b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    color: var(--ink);
+    background:
+      radial-gradient(ellipse at 50% 0%, #123221 0%, var(--bg0) 55%),
+      linear-gradient(180deg, var(--bg1), var(--bg0));
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 40px 20px 64px; }
+  .eyebrow { letter-spacing: .22em; font-size: 11px; color: var(--muted); text-transform: uppercase; }
+  h1 { font-size: clamp(1.8rem, 5vw, 2.6rem); margin: 10px 0 8px; letter-spacing: .04em; }
+  p { color: var(--muted); line-height: 1.55; }
+  .card {
+    margin-top: 22px; padding: 18px 18px 16px;
+    border: 1px solid var(--line); border-radius: 14px;
+    background: rgba(0,0,0,.28);
+  }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+  .row:last-child { border-bottom: 0; }
+  .k { color: var(--muted); }
+  .v { color: var(--accent); text-align: right; word-break: break-all; }
+  .ok { color: var(--accent); }
+  .bad { color: #ff6b6b; }
+  .btn {
+    display: inline-block; margin-top: 18px; margin-right: 10px;
+    padding: 10px 14px; border-radius: 999px; text-decoration: none;
+    border: 1px solid var(--line); color: var(--ink); background: rgba(61,255,154,.08);
+  }
+  .btn:hover { background: rgba(61,255,154,.16); }
+  code { color: var(--accent); }
+  pre {
+    margin-top: 12px; padding: 12px; overflow: auto;
+    border-radius: 10px; border: 1px solid var(--line);
+    background: #050b08; color: var(--ink); font-size: 12px;
+  }
+  .ascii { white-space: pre; font-size: 10px; line-height: 1.15; color: rgba(61,255,154,.75); overflow: auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <pre class="ascii">OTACON // VOICE TRAINER // GENOME</pre>
+  <p class="eyebrow">Otaconskeep · local GPU · Piper</p>
+  <h1>Voice Trainer ready.</h1>
+  <p>This panel is served from your machine after the one-click installer. Training is <strong class="ok">GPU-only</strong> — CPU fallback is blocked on purpose.</p>
+
+  <div class="card" id="status-card">
+    <div class="row"><span class="k">Status</span><span class="v" id="st-ok">loading…</span></div>
+    <div class="row"><span class="k">GPU</span><span class="v" id="st-gpu">—</span></div>
+    <div class="row"><span class="k">VRAM</span><span class="v" id="st-vram">—</span></div>
+    <div class="row"><span class="k">Image</span><span class="v" id="st-img">—</span></div>
+    <div class="row"><span class="k">Install dir</span><span class="v" id="st-dir">—</span></div>
+  </div>
+
+  <a class="btn" href="https://github.com/Otaconskeep/otacon-voice-trainer" target="_blank" rel="noopener">GitHub write-up</a>
+  <a class="btn" href="https://otaconskeep-site.otaconskeep.workers.dev/otacon/#voice-trainer" target="_blank" rel="noopener">Keep site docs</a>
+  <a class="btn" href="https://discord.gg/cZDeqECzX" target="_blank" rel="noopener">Discord</a>
+
+  <div class="card">
+    <p class="eyebrow">One-click (Linux / WSL)</p>
+    <pre>curl -fsSL https://raw.githubusercontent.com/Otaconskeep/otacon-voice-trainer/main/install_voice_trainer.sh | bash</pre>
+    <p class="eyebrow" style="margin-top:16px">With Otacon Core</p>
+    <pre>OTACON_INSTALL_VOICE_TRAINER=1 curl -fsSL \
+  https://raw.githubusercontent.com/Otaconskeep/otacons-ai-ecosystem/main/install_otacon.sh | bash</pre>
+  </div>
+</div>
+<script>
+fetch('status.json').then(r => r.json()).then(d => {
+  document.getElementById('st-ok').textContent = d.ok ? 'OK' : 'NOT READY';
+  document.getElementById('st-ok').className = 'v ' + (d.ok ? 'ok' : 'bad');
+  document.getElementById('st-gpu').textContent = d.gpu_name || '—';
+  document.getElementById('st-vram').textContent = d.gpu_vram_mb ? (d.gpu_vram_mb + ' MiB') : '—';
+  document.getElementById('st-img').textContent = d.image || '—';
+  document.getElementById('st-dir').textContent = d.install_dir || '—';
+}).catch(() => {
+  document.getElementById('st-ok').textContent = 'status.json missing — re-run installer';
+  document.getElementById('st-ok').className = 'v bad';
+});
+</script>
+</body>
+</html>

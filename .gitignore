@@ -1,0 +1,16 @@
+# Runtime / bulky artifacts — never commit
+workspace/
+checkpoints/
+whisper_cache/
+__pycache__/
+*.pyc
+
+# Local bench dumps (regenerate with benchmark_configs.py)
+bench_results_*.json
+bench_winner_*.json
+
+# Editor / OS
+.DS_Store
+*.swp
+.env
+.env.*
