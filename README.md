@@ -18,12 +18,14 @@ curl -fsSL https://raw.githubusercontent.com/Otaconskeep/otacon-voice-trainer/ma
 **Windows** — double-click [`install_voice_trainer.bat`](./install_voice_trainer.bat)  
 (sets up WSL2 + Ubuntu if needed, then runs the Linux installer).
 
-**Together with Otacon Core**
+**Together with Otacon** (included by default in the normal Otacon install)
 
 ```bash
-OTACON_INSTALL_VOICE_TRAINER=1 curl -fsSL \
+curl -fsSL \
   https://raw.githubusercontent.com/Otaconskeep/otacons-ai-ecosystem/main/install_otacon.sh | bash
 ```
+
+Skip Voice Trainer only: `OTACON_INSTALL_VOICE_TRAINER=0` before that command.
 
 After install: open **http://127.0.0.1:8765/** for the simple local UI.
 
