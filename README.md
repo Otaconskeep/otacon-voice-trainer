@@ -39,7 +39,7 @@ After install: open **http://127.0.0.1:8765/** for the simple local UI.
 | `piper-voice-trainer:gpu` | CUDA 11.8 torch — **required** for training + Whisper |
 | `pipeline.py` | YouTube → WAV → Whisper → Piper fine-tune → ONNX; **refuses CPU** |
 | Simple UI | Local status panel after install |
-| Otacon Core hook | Optional `OTACON_INSTALL_VOICE_TRAINER=1` |
+| Otacon Core hook | Included by default (skip: `OTACON_INSTALL_VOICE_TRAINER=0`) |
 
 The installer:
 

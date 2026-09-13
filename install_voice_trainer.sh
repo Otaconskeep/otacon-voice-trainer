@@ -88,6 +88,19 @@ printf '\033[0;37mHelp: %s\033[0m\n\n' "$DISCORD_URL"
 
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
+# Docker helper that works immediately after usermod -aG docker (no re-login).
+docker_cmd() {
+  if docker info >/dev/null 2>&1; then
+    docker "$@"
+  elif command_exists sg && sg docker -c "docker info" >/dev/null 2>&1; then
+    sg docker -c "docker $(printf '%q ' "$@")"
+  elif [[ -n "${SUDO:-}" ]]; then
+    $SUDO docker "$@"
+  else
+    docker "$@"
+  fi
+}
+
 # ---------- Windows shells → send them to WSL ----------
 case "$(uname -s 2>/dev/null || true)" in
   MINGW*|MSYS*|CYGWIN*)
@@ -148,20 +161,36 @@ ok "Python $(python3 --version 2>&1 | awk '{print $2}')"
 # ---------- Docker ----------
 install_docker() {
   log "Installing Docker Engine"
-  if command_exists docker && docker info >/dev/null 2>&1; then
+  if command_exists docker && (docker info >/dev/null 2>&1 || $SUDO docker info >/dev/null 2>&1 || (command_exists sg && sg docker -c "docker info" >/dev/null 2>&1)); then
     ok "Docker already running"
     return 0
   fi
   curl -fsSL https://get.docker.com | $SUDO sh
   if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
     $SUDO usermod -aG docker "$USER" || true
-    warn "Added $USER to docker group — if 'docker' fails next, log out/in once."
+    warn "Added $USER to docker group. This installer will use 'sg docker' / sudo for the rest of this run."
+    warn "Open a new login shell later so plain 'docker' works without sg/sudo."
   fi
   $SUDO systemctl enable --now docker 2>/dev/null || $SUDO service docker start || true
-  ok "Docker installed"
+  # Prove docker works in THIS session without logout.
+  if docker_cmd info >/dev/null 2>&1; then
+    ok "Docker installed and usable in this session"
+  else
+    die "Docker installed but not usable yet. Try: sudo docker info   or: sg docker -c 'docker info'"
+  fi
 }
 
 install_docker
+
+# If the user was just added to the docker group, re-enter via `sg docker`
+# so subsequent build.sh / docker run calls inherit membership without logout.
+if ! docker info >/dev/null 2>&1; then
+  if [[ "${OTACON_VT_DOCKER_REEXEC:-0}" != "1" ]] && command_exists sg && getent group docker 2>/dev/null | grep -qw "${USER}"; then
+    warn "Re-entering installer under 'sg docker' so Docker works without logging out."
+    export OTACON_VT_DOCKER_REEXEC=1
+    exec sg docker -c "export OTACON_VT_DOCKER_REEXEC=1; exec bash \"$0\" $*"
+  fi
+fi
 
 # ---------- GPU lookup ----------
 log "GPU lookup"
@@ -184,7 +213,7 @@ fi
 # ---------- NVIDIA Container Toolkit ----------
 install_nvidia_ctk() {
   log "Ensuring NVIDIA Container Toolkit (--gpus all)"
-  if docker run --rm --gpus all nvidia/cuda:12.0.0-base-ubuntu22.04 nvidia-smi >/dev/null 2>&1; then
+  if docker_cmd run --rm --gpus all nvidia/cuda:12.0.0-base-ubuntu22.04 nvidia-smi >/dev/null 2>&1; then
     ok "docker --gpus all already works"
     return 0
   fi
@@ -198,7 +227,7 @@ install_nvidia_ctk() {
   $SUDO nvidia-ctk runtime configure --runtime=docker
   $SUDO systemctl restart docker 2>/dev/null || $SUDO service docker restart || true
   sleep 2
-  docker run --rm --gpus all nvidia/cuda:12.0.0-base-ubuntu22.04 nvidia-smi >/dev/null \
+  docker_cmd run --rm --gpus all nvidia/cuda:12.0.0-base-ubuntu22.04 nvidia-smi >/dev/null \
     || die "docker --gpus all still failing after toolkit install"
   ok "NVIDIA Container Toolkit ready"
 }
@@ -264,15 +293,37 @@ EOF
 start_ui
 
 # ---------- Interactive menu ----------
+# Final states: READY(0) / DEGRADED(2) / FAILED(1)
+FINAL_STATE=READY
+FINAL_RC=0
+# Required: docker usable + GPU toolkit path + sources + (unless skipped) GPU image verify
+if ! docker info >/dev/null 2>&1 && ! docker_cmd info >/dev/null 2>&1; then
+  FINAL_STATE=FAILED
+  FINAL_RC=1
+fi
+if [[ "$HAVE_NVIDIA" != "1" ]]; then
+  FINAL_STATE=FAILED
+  FINAL_RC=1
+fi
+if [[ ! -d "$INSTALL_DIR" ]]; then
+  FINAL_STATE=FAILED
+  FINAL_RC=1
+fi
+
 menu() {
   echo ""
   echo "=============================================================================="
-  echo "  OTACON VOICE TRAINER — READY"
+  case "$FINAL_STATE" in
+    READY) echo "  OTACON VOICE TRAINER — READY" ;;
+    DEGRADED) echo "  OTACON VOICE TRAINER — DEGRADED" ;;
+    *) echo "  OTACON VOICE TRAINER — FAILED" ;;
+  esac
   echo "=============================================================================="
   echo "  GPU     : $GPU_NAME (${GPU_VRAM_MB} MiB)"
   echo "  Image   : piper-voice-trainer:gpu"
   echo "  Sources : $INSTALL_DIR"
   echo "  UI      : http://127.0.0.1:${UI_PORT}/"
+  echo "  Status  : $FINAL_STATE (exit $FINAL_RC)"
   echo "=============================================================================="
   echo "  1) Re-verify CUDA inside trainer image"
   echo "  2) Rebuild GPU image"
@@ -281,7 +332,7 @@ menu() {
   echo "  5) Exit"
   echo "=============================================================================="
   if [[ ! -t 0 ]]; then
-    ok "Non-interactive shell — install finished. Open http://127.0.0.1:${UI_PORT}/"
+    ok "Non-interactive shell — install finished ($FINAL_STATE). Open http://127.0.0.1:${UI_PORT}/"
     return 0
   fi
   while true; do
@@ -316,6 +367,8 @@ EOF
 menu
 
 echo ""
-ok "Done. Train with Genome / #voice-train once Otacon Keep or your trainer launcher points at piper-voice-trainer:gpu"
+ok "Done ($FINAL_STATE). Train with Genome / #voice-train once Otacon Keep or your trainer launcher points at piper-voice-trainer:gpu"
 printf '\033[0;37mWrite-up: https://github.com/Otaconskeep/otacon-voice-trainer#readme\033[0m\n'
 printf '\033[0;37mSite:     https://otaconskeep-site.otaconskeep.workers.dev/otacon/#voice-trainer\033[0m\n'
+printf '\033[0;37mNote: open a new shell later so plain docker works without sg/sudo if you were just added to the docker group.\033[0m\n'
+exit "$FINAL_RC"
