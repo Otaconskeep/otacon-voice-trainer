@@ -1,0 +1,4 @@
+# Windows batch/cmd installers: store exact UTF-8 BOM + CRLF bytes.
+# Do not let Git renormalize line endings or strip the BOM.
+*.bat binary
+*.cmd binary
