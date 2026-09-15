@@ -1,5 +1,5 @@
-@echo off
-REM Otaconskeep // Otacon Voice Trainer — Windows one-click
+﻿@echo off
+REM Otaconskeep // Otacon Voice Trainer - Windows one-click
 REM Selects a supported Ubuntu WSL distro (same logic as Otacon Core), then
 REM downloads and runs install_voice_trainer.sh inside that distro.
 setlocal enabledelayedexpansion
@@ -11,7 +11,7 @@ if not exist "%FIND_UBUNTU_PS1%" set "FIND_UBUNTU_PS1=%SCRIPT_DIR%find-ubuntu.ps
 
 echo ============================================================
 echo  OTACONSKEEP // OTACON VOICE TRAINER
-echo  Genome GPU Piper installer — Antonio G. Garcia
+echo  Genome GPU Piper installer - Antonio G. Garcia
 echo ============================================================
 echo.
 
@@ -20,7 +20,9 @@ if errorlevel 1 (
   echo WSL is not installed. Requesting Administrator to run: wsl --install
   net session >nul 2>&1
   if errorlevel 1 (
-    powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+    REM Never append %~f0 after powershell -Command (path becomes script text).
+    set "OTACON_VT_SELF=%~f0"
+    powershell -NoProfile -Command "Start-Process -LiteralPath $env:OTACON_VT_SELF -Verb RunAs"
     exit /b
   )
   wsl.exe --install -d Ubuntu
@@ -36,7 +38,8 @@ if not defined UBUNTU_NAME (
   echo No Ubuntu WSL distro found. Installing Ubuntu...
   net session >nul 2>&1
   if errorlevel 1 (
-    powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+    set "OTACON_VT_SELF=%~f0"
+    powershell -NoProfile -Command "Start-Process -LiteralPath $env:OTACON_VT_SELF -Verb RunAs"
     exit /b
   )
   wsl.exe --install -d Ubuntu
@@ -81,10 +84,17 @@ wsl.exe -d "%UBUNTU_NAME%" -- bash -lc "set -euo pipefail; TMP=$(mktemp /tmp/ota
 exit /b %errorlevel%
 
 :FIND_UBUNTU
+REM Prefer bundled deploy\find-ubuntu.ps1 (-File). Never put PowerShell ) inside IF (...).
+REM Standalone .bat download: fetch helper to TEMP via top-level -Command, then -File.
 set "UBUNTU_NAME="
-if exist "%FIND_UBUNTU_PS1%" (
-  for /f "delims=" %%D in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%FIND_UBUNTU_PS1%"') do set "UBUNTU_NAME=%%D"
-) else (
-  for /f "delims=" %%D in ('powershell -NoProfile -Command "$raw = & wsl.exe -l -q 2>$null; $clean = $raw | ForEach-Object { $_ -replace \"`0\", \"\" } | Where-Object { $_.Trim() -ne \"\" }; $match = $clean | Where-Object { $_ -match \"Ubuntu\" -and $_ -notmatch \"docker-desktop\" } | Select-Object -First 1; if ($match) { Write-Output $match.Trim() }"') do set "UBUNTU_NAME=%%D"
-)
+if exist "%FIND_UBUNTU_PS1%" goto :FIND_UBUNTU_RUN
+set "FIND_UBUNTU_PS1=%TEMP%\otacon-vt-find-ubuntu.ps1"
+if exist "%FIND_UBUNTU_PS1%" goto :FIND_UBUNTU_RUN
+set "FIND_UBUNTU_URL=https://raw.githubusercontent.com/Otaconskeep/otacon-voice-trainer/main/deploy/find-ubuntu.ps1"
+REM Top-level -Command only (Otacon Setup rule) - path via env, not trailing args.
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try{[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12}catch{}; Invoke-WebRequest -Uri $env:FIND_UBUNTU_URL -OutFile $env:FIND_UBUNTU_PS1 -UseBasicParsing"
+
+:FIND_UBUNTU_RUN
+if exist "%FIND_UBUNTU_PS1%" for /f "delims=" %%D in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%FIND_UBUNTU_PS1%"') do set "UBUNTU_NAME=%%D"
 exit /b
+
