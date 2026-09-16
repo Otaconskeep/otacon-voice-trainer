@@ -125,10 +125,23 @@ if grep -qi microsoft /proc/version 2>/dev/null; then
 fi
 
 SUDO=""
-if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
-  if command_exists sudo; then SUDO="sudo"; else die "Need sudo for apt/docker packages."; fi
+if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+  warn "Running as root — fine for servers / OtaconsKeep privileged phase; prefer a normal user + sudo on interactive desktops."
+  SUDO=""
+elif command_exists sudo; then
+  # Never hang on a password prompt in unattended/Windows Setup contexts.
+  # Match otacons-ai-ecosystem install_otacon.sh: no permanent NOPASSWD:ALL.
+  if sudo -n true >/dev/null 2>&1; then
+    SUDO="sudo -n"
+    ok "Using existing non-interactive sudo (not created by this installer)"
+  elif [[ -t 0 ]] && [[ -t 1 ]]; then
+    SUDO="sudo"
+    ok "Interactive TTY detected — sudo may ask for your password for apt/docker"
+  else
+    die "Need root or working non-interactive sudo for apt/docker — and there is no TTY to type a password. On Windows OtaconsKeep Setup this installer must run during the root (privileged) phase, or stand-alone as: wsl.exe -u root -- bash -lc 'curl -fsSL $RAW_INSTALL_URL | bash'. Discord: $DISCORD_URL"
+  fi
 else
-  warn "Running as root — fine for servers; prefer a normal user + sudo on desktops."
+  die "Need sudo for apt/docker packages."
 fi
 
 # ---------- WSL systemd (needed for docker) ----------
