@@ -5,6 +5,8 @@ Designed & engineered by **Antonio G. Garcia** · Built for the Keep.
 
 One-click install. No silent CPU training. That hole is closed.
 
+> **Credits:** Otacon Voice Trainer was designed and engineered by Antonio G. Garcia. AI-assisted tooling was used for selected implementation, installer, testing, and hardening tasks. See [`CREDITS.md`](./CREDITS.md).
+
 ---
 
 ## One command
