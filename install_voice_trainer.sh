@@ -266,6 +266,16 @@ else
 fi
 ok "Sources at $INSTALL_DIR"
 
+# When Otacon runs this installer as root into a user's home, make the tree
+# writable for Expansion UI (status.json) during the long docker build — not only at exit.
+_vt_chown_owner() {
+  local owner="${OTACON_VT_OWNER:-${SUDO_USER:-}}"
+  if [[ "${EUID:-$(id -u)}" -eq 0 && -n "$owner" && -d "$INSTALL_DIR" ]]; then
+    chown -R "$owner":"$owner" "$INSTALL_DIR" 2>/dev/null || true
+  fi
+}
+_vt_chown_owner
+
 # ---------- Build images ----------
 if [[ "$SKIP_BUILD" != "1" ]]; then
   log "Building Docker images (GPU trainer) — first run can take a while"
@@ -273,6 +283,7 @@ if [[ "$SKIP_BUILD" != "1" ]]; then
 else
   warn "Skipping image build (OTACON_VT_SKIP_BUILD=1)"
 fi
+_vt_chown_owner
 
 # ---------- Simple UI (status.json + serve from $INSTALL_DIR/ui) ----------
 UI_PID=""
@@ -384,6 +395,8 @@ start_ui() {
 }
 
 start_ui || warn "Voice Trainer UI did not become READY (install still kept; fix port/:status.json and re-run start)"
+
+_vt_chown_owner
 
 # ---------- Interactive menu ----------
 # Final states: READY(0) / DEGRADED(2) / FAILED(1)
