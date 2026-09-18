@@ -5,94 +5,84 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Otacon Voice Trainer</title>
 <style>
-  :root {
-    --bg0: #07140c;
-    --bg1: #0c1f14;
-    --ink: #d7f5df;
-    --muted: #8fb89a;
-    --accent: #3dff9a;
-    --line: rgba(61,255,154,.22);
-    --warn: #ffb86b;
+  :root{
+    --bg0:#03070a;--bg1:#08121a;--ink:#e8eef2;--muted:#7a8f9a;
+    --cyan:#2ee6d6;--line:rgba(46,230,214,.28);--warn:#f5a524;--bad:#ff4d9a;
   }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; min-height: 100vh;
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    color: var(--ink);
-    background:
-      radial-gradient(ellipse at 50% 0%, #123221 0%, var(--bg0) 55%),
-      linear-gradient(180deg, var(--bg1), var(--bg0));
+  *{box-sizing:border-box}
+  body{
+    margin:0;min-height:100vh;font-family:ui-monospace,"IBM Plex Mono",monospace;color:var(--ink);
+    background:radial-gradient(ellipse at 20% 0%,rgba(46,230,214,.12),transparent 45%),linear-gradient(180deg,var(--bg1),var(--bg0));
   }
-  .wrap { max-width: 720px; margin: 0 auto; padding: 40px 20px 64px; }
-  .eyebrow { letter-spacing: .22em; font-size: 11px; color: var(--muted); text-transform: uppercase; }
-  h1 { font-size: clamp(1.8rem, 5vw, 2.6rem); margin: 10px 0 8px; letter-spacing: .04em; }
-  p { color: var(--muted); line-height: 1.55; }
-  .card {
-    margin-top: 22px; padding: 18px 18px 16px;
-    border: 1px solid var(--line); border-radius: 14px;
-    background: rgba(0,0,0,.28);
-  }
-  .row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
-  .row:last-child { border-bottom: 0; }
-  .k { color: var(--muted); }
-  .v { color: var(--accent); text-align: right; word-break: break-all; }
-  .ok { color: var(--accent); }
-  .bad { color: #ff6b6b; }
-  .btn {
-    display: inline-block; margin-top: 18px; margin-right: 10px;
-    padding: 10px 14px; border-radius: 999px; text-decoration: none;
-    border: 1px solid var(--line); color: var(--ink); background: rgba(61,255,154,.08);
-  }
-  .btn:hover { background: rgba(61,255,154,.16); }
-  code { color: var(--accent); }
-  pre {
-    margin-top: 12px; padding: 12px; overflow: auto;
-    border-radius: 10px; border: 1px solid var(--line);
-    background: #050b08; color: var(--ink); font-size: 12px;
-  }
-  .ascii { white-space: pre; font-size: 10px; line-height: 1.15; color: rgba(61,255,154,.75); overflow: auto; }
+  .wrap{max-width:880px;margin:0 auto;padding:32px 18px 64px}
+  .eyebrow{letter-spacing:.22em;font-size:10px;color:var(--cyan);text-transform:uppercase}
+  h1{font-size:clamp(1.6rem,4vw,2.2rem);margin:8px 0;letter-spacing:.05em}
+  p{color:var(--muted);line-height:1.55}
+  .widgets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem;margin:1rem 0}
+  @media(max-width:720px){.widgets{grid-template-columns:1fr 1fr}}
+  .widget{padding:.7rem .75rem;border:1px solid var(--line);background:rgba(8,18,26,.94);
+    clip-path:polygon(8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px),0 8px)}
+  .widget .k{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .widget .v{margin-top:6px;color:var(--cyan);word-break:break-word}
+  .widget .v.bad{color:var(--bad)}.widget .v.ok{color:var(--cyan)}
+  .panel{margin-top:14px;padding:1rem;border:1px solid var(--line);background:rgba(8,18,26,.94)}
+  .btn{display:inline-block;margin:8px 8px 0 0;padding:10px 14px;border:1px solid var(--line);
+    color:var(--ink);background:rgba(46,230,214,.1);text-decoration:none;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase}
+  .btn:hover{background:rgba(46,230,214,.18)}
+  .btn.primary{border-color:rgba(46,230,214,.55);color:var(--cyan)}
+  pre{margin-top:10px;padding:12px;overflow:auto;border:1px solid var(--line);background:#020508;font-size:12px}
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(2,6,10,.75);padding:18px;z-index:20}
+  .modal.open{display:flex}
+  .modal-card{width:min(480px,100%);padding:1.1rem;border:1px solid rgba(46,230,214,.4);background:#08121a}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <pre class="ascii">OTACON // VOICE TRAINER // GENOME</pre>
-  <p class="eyebrow">Otaconskeep · local GPU · Piper</p>
-  <h1>Voice Trainer ready.</h1>
-  <p>This panel is served from your machine after the one-click installer. Training is <strong class="ok">GPU-only</strong> — CPU fallback is blocked on purpose.</p>
+  <p class="eyebrow">Otaconskeep · Genome · local GPU</p>
+  <h1>Voice Trainer</h1>
+  <p>Status console for this install. Full clone UI (popups + train) is served when Expansion owns <code>:8765</code> — open Genome from the Otacon deck, or soft-update and Start Genome.</p>
 
-  <div class="card" id="status-card">
-    <div class="row"><span class="k">Status</span><span class="v" id="st-ok">loading…</span></div>
-    <div class="row"><span class="k">GPU</span><span class="v" id="st-gpu">—</span></div>
-    <div class="row"><span class="k">VRAM</span><span class="v" id="st-vram">—</span></div>
-    <div class="row"><span class="k">Image</span><span class="v" id="st-img">—</span></div>
-    <div class="row"><span class="k">Install dir</span><span class="v" id="st-dir">—</span></div>
+  <div class="widgets">
+    <div class="widget"><div class="k">Status</div><div class="v" id="st-ok">loading…</div></div>
+    <div class="widget"><div class="k">GPU</div><div class="v" id="st-gpu">—</div></div>
+    <div class="widget"><div class="k">VRAM</div><div class="v" id="st-vram">—</div></div>
+    <div class="widget"><div class="k">Image</div><div class="v" id="st-img">—</div></div>
   </div>
 
-  <a class="btn" href="https://github.com/Otaconskeep/otacon-voice-trainer" target="_blank" rel="noopener">GitHub write-up</a>
-  <a class="btn" href="https://otaconskeep-site.otaconskeep.workers.dev/otacon/#voice-trainer" target="_blank" rel="noopener">Keep site docs</a>
-  <a class="btn" href="https://discord.gg/cZDeqECzX" target="_blank" rel="noopener">Discord</a>
+  <div class="panel">
+    <p class="eyebrow">Actions</p>
+    <button type="button" class="btn primary" id="btnDetails">Status details…</button>
+    <a class="btn" href="https://github.com/Otaconskeep/otacon-voice-trainer" target="_blank" rel="noopener">GitHub</a>
+    <a class="btn" href="https://discord.gg/cZDeqECzX" target="_blank" rel="noopener">Discord</a>
+    <p style="margin-top:12px;font-size:12px">Install dir: <span id="st-dir">—</span></p>
+  </div>
+</div>
 
-  <div class="card">
-    <p class="eyebrow">One-click (Linux / WSL)</p>
-    <pre>curl -fsSL https://raw.githubusercontent.com/Otaconskeep/otacon-voice-trainer/main/install_voice_trainer.sh | bash</pre>
-    <p class="eyebrow" style="margin-top:16px">With Otacon Core</p>
-    <pre>curl -fsSL \
-  https://raw.githubusercontent.com/Otaconskeep/otacons-ai-ecosystem/main/install_otacon.sh \
-  | OTACON_INSTALL_VOICE_TRAINER=1 bash</pre>
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <p class="eyebrow">Probe</p>
+    <pre id="detail">…</pre>
+    <button type="button" class="btn" id="btnClose">Close</button>
   </div>
 </div>
 <script>
-fetch('status.json').then(r => r.json()).then(d => {
-  document.getElementById('st-ok').textContent = d.ok ? 'OK' : 'NOT READY';
-  document.getElementById('st-ok').className = 'v ' + (d.ok ? 'ok' : 'bad');
-  document.getElementById('st-gpu').textContent = d.gpu_name || '—';
-  document.getElementById('st-vram').textContent = d.gpu_vram_mb ? (d.gpu_vram_mb + ' MiB') : '—';
-  document.getElementById('st-img').textContent = d.image || '—';
-  document.getElementById('st-dir').textContent = d.install_dir || '—';
-}).catch(() => {
-  document.getElementById('st-ok').textContent = 'status.json missing — repairing…';
-  document.getElementById('st-ok').className = 'v bad';
+const modal=document.getElementById('modal');
+document.getElementById('btnDetails').onclick=()=>modal.classList.add('open');
+document.getElementById('btnClose').onclick=()=>modal.classList.remove('open');
+modal.onclick=e=>{ if(e.target===modal) modal.classList.remove('open'); };
+fetch('status.json').then(r=>r.json()).then(d=>{
+  const ok=document.getElementById('st-ok');
+  ok.textContent=d.ok?'READY':'NOT READY';
+  ok.className='v '+(d.ok?'ok':'bad');
+  document.getElementById('st-gpu').textContent=d.gpu_name||(d.gpu?'visible':'—');
+  document.getElementById('st-vram').textContent=d.gpu_vram_mb?(d.gpu_vram_mb+' MiB'):'—';
+  document.getElementById('st-img').textContent=d.image||'—';
+  document.getElementById('st-dir').textContent=d.install_dir||'—';
+  document.getElementById('detail').textContent=JSON.stringify(d,null,2);
+}).catch(()=>{
+  document.getElementById('st-ok').textContent='status.json missing';
+  document.getElementById('st-ok').className='v bad';
 });
-// Soft hint: Expansion/soft-update regenerates status.json automatically; no reinstall.</script>
+</script>
 </body>
 </html>
