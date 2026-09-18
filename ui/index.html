@@ -76,8 +76,9 @@
     <p class="eyebrow">One-click (Linux / WSL)</p>
     <pre>curl -fsSL https://raw.githubusercontent.com/Otaconskeep/otacon-voice-trainer/main/install_voice_trainer.sh | bash</pre>
     <p class="eyebrow" style="margin-top:16px">With Otacon Core</p>
-    <pre>OTACON_INSTALL_VOICE_TRAINER=1 curl -fsSL \
-  https://raw.githubusercontent.com/Otaconskeep/otacons-ai-ecosystem/main/install_otacon.sh | bash</pre>
+    <pre>curl -fsSL \
+  https://raw.githubusercontent.com/Otaconskeep/otacons-ai-ecosystem/main/install_otacon.sh \
+  | OTACON_INSTALL_VOICE_TRAINER=1 bash</pre>
   </div>
 </div>
 <script>
@@ -89,9 +90,9 @@ fetch('status.json').then(r => r.json()).then(d => {
   document.getElementById('st-img').textContent = d.image || '—';
   document.getElementById('st-dir').textContent = d.install_dir || '—';
 }).catch(() => {
-  document.getElementById('st-ok').textContent = 'status.json missing — re-run installer';
+  document.getElementById('st-ok').textContent = 'status.json missing — repairing…';
   document.getElementById('st-ok').className = 'v bad';
 });
-</script>
+// Soft hint: Expansion/soft-update regenerates status.json automatically; no reinstall.</script>
 </body>
 </html>

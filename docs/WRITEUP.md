@@ -37,9 +37,10 @@ surfacing as a confusing “CUDA forbidden” path even when the GPU was fine.
 # Voice trainer alone
 curl -fsSL https://raw.githubusercontent.com/Otaconskeep/otacon-voice-trainer/main/install_voice_trainer.sh | bash
 
-# Otacon Core + voice trainer
-OTACON_INSTALL_VOICE_TRAINER=1 curl -fsSL \
-  https://raw.githubusercontent.com/Otaconskeep/otacons-ai-ecosystem/main/install_otacon.sh | bash
+# Otacon Core + voice trainer (env applies to bash — not curl)
+curl -fsSL \
+  https://raw.githubusercontent.com/Otaconskeep/otacons-ai-ecosystem/main/install_otacon.sh \
+  | OTACON_INSTALL_VOICE_TRAINER=1 bash
 ```
 
 ## Verify

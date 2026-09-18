@@ -27,9 +27,23 @@ curl -fsSL \
   https://raw.githubusercontent.com/Otaconskeep/otacons-ai-ecosystem/main/install_otacon.sh | bash
 ```
 
-Skip Voice Trainer only: `OTACON_INSTALL_VOICE_TRAINER=0` before that command.
+Skip Voice Trainer only:
 
-After install: open **http://127.0.0.1:8765/** for the simple local UI.
+```bash
+curl -fsSL \
+  https://raw.githubusercontent.com/Otaconskeep/otacons-ai-ecosystem/main/install_otacon.sh \
+  | OTACON_INSTALL_VOICE_TRAINER=0 bash
+```
+
+Force-include Voice Trainer (env must apply to **bash**, not curl):
+
+```bash
+curl -fsSL \
+  https://raw.githubusercontent.com/Otaconskeep/otacons-ai-ecosystem/main/install_otacon.sh \
+  | OTACON_INSTALL_VOICE_TRAINER=1 bash
+```
+
+After install: open **http://127.0.0.1:8765/** for the local UI. The installer writes `ui/status.json` from your real GPU/install path and verifies `/` + `/status.json` before calling READY.
 
 ---
 

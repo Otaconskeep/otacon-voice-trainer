@@ -274,36 +274,116 @@ else
   warn "Skipping image build (OTACON_VT_SKIP_BUILD=1)"
 fi
 
-# ---------- Simple UI ----------
+# ---------- Simple UI (status.json + serve from $INSTALL_DIR/ui) ----------
 UI_PID=""
-start_ui() {
-  [[ "$SKIP_UI" == "1" ]] && return 0
+write_status_json() {
   local ui_dir="$INSTALL_DIR/ui"
-  [[ -d "$ui_dir" ]] || return 0
-  # Write runtime facts the UI can read
+  mkdir -p "$ui_dir"
+  # Prefer Python writer (null-safe GPU fields, no hardcoded paths/VRAM).
+  if [[ -f "$ui_dir/write_status.py" ]]; then
+    python3 "$ui_dir/write_status.py" --install-dir "$INSTALL_DIR" >/dev/null
+    return 0
+  fi
+  # Fallback if writer not yet synced
+  local gpu_json vram_json
+  if [[ "$HAVE_NVIDIA" == "1" && -n "${GPU_NAME}" && "$GPU_NAME" != "none" ]]; then
+    gpu_json="$(python3 -c "import json,sys; print(json.dumps(sys.argv[1]))" "$GPU_NAME")"
+    if [[ -n "${GPU_VRAM_MB}" && "$GPU_VRAM_MB" != "0" ]]; then
+      vram_json="$GPU_VRAM_MB"
+    else
+      vram_json="null"
+    fi
+  else
+    gpu_json="null"
+    vram_json="null"
+  fi
   cat > "$ui_dir/status.json" <<EOF
 {
   "ok": true,
   "product": "Otacon Voice Trainer",
-  "gpu_name": $(python3 -c "import json; print(json.dumps('''$GPU_NAME'''))"),
-  "gpu_vram_mb": ${GPU_VRAM_MB:-0},
+  "gpu_name": ${gpu_json},
+  "gpu_vram_mb": ${vram_json},
+  "gpu_state": "$([[ "$HAVE_NVIDIA" == "1" ]] && echo gpu_detected || echo cpu_only)",
   "image": "piper-voice-trainer:gpu",
-  "install_dir": $(python3 -c "import json; print(json.dumps('''$INSTALL_DIR'''))"),
+  "install_dir": $(python3 -c "import json,sys; print(json.dumps(sys.argv[1]))" "$INSTALL_DIR"),
   "wsl": $IN_WSL,
   "docs": "https://github.com/Otaconskeep/otacon-voice-trainer",
   "site": "https://otaconskeep-site.otaconskeep.workers.dev/otacon/#voice-trainer"
 }
 EOF
+}
+
+verify_ui_http() {
+  local port="$1"
+  python3 - "$port" <<'PY'
+import json, sys, urllib.request
+port = sys.argv[1]
+base = f"http://127.0.0.1:{port}"
+try:
+    with urllib.request.urlopen(base + "/", timeout=2) as r:
+        assert r.status == 200
+    with urllib.request.urlopen(base + "/status.json", timeout=2) as r:
+        assert r.status == 200
+        data = json.loads(r.read().decode())
+        assert isinstance(data, dict) and data.get("ok") is True
+except Exception as exc:
+    print(exc)
+    sys.exit(1)
+sys.exit(0)
+PY
+}
+
+start_ui() {
+  [[ "$SKIP_UI" == "1" ]] && return 0
+  local ui_dir="$INSTALL_DIR/ui"
+  [[ -d "$ui_dir" ]] || return 0
+
+  write_status_json
+
+  if [[ -f "$ui_dir/start_ui.py" ]]; then
+    if python3 "$ui_dir/start_ui.py" --install-dir "$INSTALL_DIR" --port "$UI_PORT" --json \
+      >/tmp/otacon-vt-ui-start.json 2>/tmp/otacon-vt-ui.log; then
+      ok "Voice Trainer UI → http://127.0.0.1:${UI_PORT}/ (status.json verified)"
+      if command_exists xdg-open; then xdg-open "http://127.0.0.1:${UI_PORT}/" >/dev/null 2>&1 || true; fi
+      return 0
+    fi
+    warn "start_ui.py reported a problem — see /tmp/otacon-vt-ui.log"
+    if grep -q port_conflict /tmp/otacon-vt-ui-start.json 2>/dev/null; then
+      warn "Port ${UI_PORT} occupied by another process — not killing it. Free the port and re-run."
+      return 1
+    fi
+  fi
+
+  # Legacy path: always cd into ui/ before http.server
   if command_exists python3; then
+    if ss -ltn 2>/dev/null | grep -q ":${UI_PORT} " || (echo >/dev/tcp/127.0.0.1/"$UI_PORT") >/dev/null 2>&1; then
+      if verify_ui_http "$UI_PORT"; then
+        ok "UI already healthy on :${UI_PORT}"
+        return 0
+      fi
+      write_status_json
+      if verify_ui_http "$UI_PORT"; then
+        ok "Repaired status.json on running UI :${UI_PORT}"
+        return 0
+      fi
+      warn "Port ${UI_PORT} occupied but status.json not valid — not killing foreign process"
+      return 1
+    fi
     ( cd "$ui_dir" && python3 -m http.server "$UI_PORT" --bind 127.0.0.1 ) >/tmp/otacon-vt-ui.log 2>&1 &
     UI_PID=$!
+    echo "$UI_PID" > "$ui_dir/.otacon-vt-ui.pid"
     sleep 1
-    ok "Simple UI → http://127.0.0.1:${UI_PORT}/  (pid $UI_PID)"
-    if command_exists xdg-open; then xdg-open "http://127.0.0.1:${UI_PORT}/" >/dev/null 2>&1 || true; fi
+    if verify_ui_http "$UI_PORT"; then
+      ok "Simple UI → http://127.0.0.1:${UI_PORT}/  (pid $UI_PID, status.json ok)"
+      if command_exists xdg-open; then xdg-open "http://127.0.0.1:${UI_PORT}/" >/dev/null 2>&1 || true; fi
+      return 0
+    fi
+    warn "UI started but verify failed — check /tmp/otacon-vt-ui.log"
+    return 1
   fi
 }
 
-start_ui
+start_ui || warn "Voice Trainer UI did not become READY (install still kept; fix port/:status.json and re-run start)"
 
 # ---------- Interactive menu ----------
 # Final states: READY(0) / DEGRADED(2) / FAILED(1)
@@ -360,10 +440,11 @@ menu() {
       4)
         cat <<EOF
 
-Add to Otacon Core install (one line):
+Add to Otacon Core install (env applies to bash, not curl):
 
-  OTACON_INSTALL_VOICE_TRAINER=1 curl -fsSL \\
-    https://raw.githubusercontent.com/Otaconskeep/otacons-ai-ecosystem/main/install_otacon.sh | bash
+  curl -fsSL \\
+    https://raw.githubusercontent.com/Otaconskeep/otacons-ai-ecosystem/main/install_otacon.sh \\
+    | OTACON_INSTALL_VOICE_TRAINER=1 bash
 
 Or after Otacon Core is installed:
 
